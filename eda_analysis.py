@@ -1,21 +1,13 @@
 import pandas as pd
 import polars as pl
-import matplotlib.pyplot as plt
-import seaborn as sns
+
 import warnings
 
 warnings.filterwarnings('ignore')
 
-# Настройка стиля графиков
-plt.style.use('default')
-sns.set_palette("husl")
-
 
 class FraudDetectionEDA:
-    """Класс для проведения разведочного анализа данных мошенничества"""
-
     def __init__(self, transaction_file, currency_file):
-        """Инициализация с загрузкой данных"""
         self.transaction_file = transaction_file
         self.currency_file = currency_file
         self.df_transactions = None
@@ -23,31 +15,25 @@ class FraudDetectionEDA:
         self.load_data()
 
     def load_data(self):
-        """Загрузка данных из parquet файлов"""
         print("📊 Загрузка данных...")
 
-        # Загружаем данные транзакций
         self.df_transactions = pl.read_parquet(self.transaction_file)
         print(f"Транзакции: {self.df_transactions.shape[0]} строк, {self.df_transactions.shape[1]} столбцов")
 
-        # Загружаем данные валютных курсов
         self.df_currency = pl.read_parquet(self.currency_file)
         print(f"Валютные курсы: {self.df_currency.shape[0]} строк, {self.df_currency.shape[1]} столбцов")
 
         print("✅ Данные успешно загружены!")
 
     def basic_info(self):
-        """Базовая информация о датасете"""
         print("\n" + "=" * 60)
         print("📋 БАЗОВАЯ ИНФОРМАЦИЯ О ДАННЫХ")
         print("=" * 60)
 
-        # Информация о транзакциях
         print("\n🏦 ДАННЫЕ ТРАНЗАКЦИЙ:")
         print(f"Размер датасета: {self.df_transactions.shape}")
         print(f"Период данных: {self.df_transactions['timestamp'].min()} - {self.df_transactions['timestamp'].max()}")
 
-        # Проверяем пропуски
         null_counts = self.df_transactions.null_count()
         print("\n🔍 Пропущенные значения:")
         for col in null_counts.columns:
@@ -55,7 +41,6 @@ class FraudDetectionEDA:
             if null_val > 0:
                 print(f"  {col}: {null_val} ({null_val / len(self.df_transactions) * 100:.2f}%)")
 
-        # Базовая статистика по мошенничеству
         fraud_stats = self.df_transactions.group_by('is_fraud').agg([
             pl.count().alias('count'),
             pl.col('amount').mean().alias('avg_amount'),
@@ -64,7 +49,6 @@ class FraudDetectionEDA:
         print(f"\n🚨 Распределение мошенничества:")
         print(fraud_stats.to_pandas())
 
-        # Информация о валютах
         print(f"\n💱 ВАЛЮТНЫЕ КУРСЫ:")
         print(f"Период: {self.df_currency['date'].min()} - {self.df_currency['date'].max()}")
         print(f"Валюты: {[col for col in self.df_currency.columns if col != 'date']}")
@@ -75,10 +59,8 @@ class FraudDetectionEDA:
         print("🚨 АНАЛИЗ МОШЕННИЧЕСТВА")
         print("=" * 60)
 
-        # Конвертируем в pandas для удобства анализа
         df_pd = self.df_transactions.to_pandas()
 
-        # Общая статистика
         total_transactions = len(df_pd)
         fraud_transactions = df_pd['is_fraud'].sum()
         fraud_rate = fraud_transactions / total_transactions * 100
@@ -88,7 +70,6 @@ class FraudDetectionEDA:
         print(f"  Мошеннических транзакций: {fraud_transactions:,}")
         print(f"  Уровень мошенничества: {fraud_rate:.2f}%")
 
-        # Потери от мошенничества
         fraud_amount = df_pd[df_pd['is_fraud']]['amount'].sum()
         total_amount = df_pd['amount'].sum()
         fraud_loss_rate = fraud_amount / total_amount * 100
@@ -98,7 +79,6 @@ class FraudDetectionEDA:
         print(f"  Потери от мошенничества: ${fraud_amount:,.2f}")
         print(f"  Доля потерь: {fraud_loss_rate:.2f}%")
 
-        # Средние суммы
         avg_legit = df_pd[~df_pd['is_fraud']]['amount'].mean()
         avg_fraud = df_pd[df_pd['is_fraud']]['amount'].mean()
 
@@ -108,14 +88,12 @@ class FraudDetectionEDA:
         print(f"  Разница: {((avg_fraud / avg_legit - 1) * 100):+.1f}%")
 
     def analyze_by_dimensions(self):
-        """Анализ мошенничества по различным измерениям"""
         print("\n" + "=" * 60)
         print("🔍 АНАЛИЗ ПО ИЗМЕРЕНИЯМ")
         print("=" * 60)
 
         df_pd = self.df_transactions.to_pandas()
 
-        # Анализ по категориям вендоров
         print("\n🏪 По категориям вендоров:")
         vendor_analysis = df_pd.groupby('vendor_category').agg({
             'is_fraud': ['count', 'sum', 'mean'],
@@ -125,7 +103,6 @@ class FraudDetectionEDA:
         vendor_analysis['fraud_rate_pct'] = vendor_analysis['fraud_rate'] * 100
         print(vendor_analysis.sort_values('fraud_rate', ascending=False))
 
-        # Анализ по типам карт
         print("\n💳 По типам карт:")
         card_analysis = df_pd.groupby('card_type').agg({
             'is_fraud': ['count', 'sum', 'mean'],
@@ -135,7 +112,6 @@ class FraudDetectionEDA:
         card_analysis['fraud_rate_pct'] = card_analysis['fraud_rate'] * 100
         print(card_analysis.sort_values('fraud_rate', ascending=False))
 
-        # Анализ по каналам
         print("\n📱 По каналам:")
         channel_analysis = df_pd.groupby('channel').agg({
             'is_fraud': ['count', 'sum', 'mean'],
@@ -145,7 +121,6 @@ class FraudDetectionEDA:
         channel_analysis['fraud_rate_pct'] = channel_analysis['fraud_rate'] * 100
         print(channel_analysis.sort_values('fraud_rate', ascending=False))
 
-        # Анализ по странам
         print("\n🌍 Топ-10 стран по уровню мошенничества:")
         country_analysis = df_pd.groupby('country').agg({
             'is_fraud': ['count', 'sum', 'mean']
@@ -157,7 +132,6 @@ class FraudDetectionEDA:
         print(top_fraud_countries)
 
     def temporal_analysis(self):
-        """Временной анализ мошенничества"""
         print("\n" + "=" * 60)
         print("⏰ ВРЕМЕННОЙ АНАЛИЗ")
         print("=" * 60)
@@ -168,7 +142,6 @@ class FraudDetectionEDA:
         df_pd['day_of_week'] = df_pd['timestamp'].dt.day_name()
         df_pd['date'] = df_pd['timestamp'].dt.date
 
-        # Анализ по часам
         print("\n🕐 По часам дня:")
         hourly_analysis = df_pd.groupby('hour').agg({
             'is_fraud': ['count', 'sum', 'mean']
@@ -176,12 +149,10 @@ class FraudDetectionEDA:
         hourly_analysis.columns = ['total_trans', 'fraud_trans', 'fraud_rate']
         hourly_analysis['fraud_rate_pct'] = hourly_analysis['fraud_rate'] * 100
 
-        # Показываем самые опасные часы
         dangerous_hours = hourly_analysis.sort_values('fraud_rate', ascending=False).head(5)
         print("Топ-5 самых опасных часов:")
         print(dangerous_hours)
 
-        # Анализ выходных vs будни
         print("\n📅 Выходные vs будни:")
         weekend_analysis = df_pd.groupby('is_weekend').agg({
             'is_fraud': ['count', 'sum', 'mean']
@@ -192,14 +163,12 @@ class FraudDetectionEDA:
         print(weekend_analysis)
 
     def risk_factors_analysis(self):
-        """Анализ факторов риска"""
         print("\n" + "=" * 60)
         print("⚠️ АНАЛИЗ ФАКТОРОВ РИСКА")
         print("=" * 60)
 
         df_pd = self.df_transactions.to_pandas()
 
-        # Анализ рискованных факторов
         risk_factors = ['is_high_risk_vendor', 'is_outside_home_country', 'is_card_present']
 
         for factor in risk_factors:
@@ -211,10 +180,8 @@ class FraudDetectionEDA:
             factor_analysis['fraud_rate_pct'] = factor_analysis['fraud_rate'] * 100
             print(factor_analysis)
 
-        # Анализ активности за последний час
         print("\n⚡ Анализ активности за последний час:")
 
-        # Извлекаем данные из структуры last_hour_activity
         df_pd['last_hour_num_trans'] = df_pd['last_hour_activity'].apply(
             lambda x: x.get('num_transactions', 0) if x else 0)
         df_pd['last_hour_total_amount'] = df_pd['last_hour_activity'].apply(
@@ -222,7 +189,6 @@ class FraudDetectionEDA:
         df_pd['last_hour_unique_merchants'] = df_pd['last_hour_activity'].apply(
             lambda x: x.get('unique_merchants', 0) if x else 0)
 
-        # Корреляция с мошенничеством
         activity_corr = \
         df_pd[['is_fraud', 'last_hour_num_trans', 'last_hour_total_amount', 'last_hour_unique_merchants']].corr()[
             'is_fraud'].sort_values(ascending=False)
@@ -374,7 +340,6 @@ class FraudDetectionEDA:
 
 
 if __name__ == "__main__":
-    # Запуск анализа
     eda = FraudDetectionEDA(
         transaction_file="transaction_fraud_data.parquet",
         currency_file="historical_currency_exchange.parquet"
